@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ */
+/* 디자인 토큰 — 다크가 기본, data-theme="light" 로 전환                 */
+/* ------------------------------------------------------------------ */
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #191919;
+  --bg-elevated: #202020;
+  --surface: #252525;
+  --surface-hover: #2e2e2e;
+  --border: #363636;
+  --border-strong: #474747;
+
+  /*
+   * 본문 텍스트는 전부 WCAG AA(4.5:1)를 넘긴다.
+   * 가장 작은 글씨(달력 칩·안내 문구)에 가장 옅은 색을 쓰고 있었으므로
+   * faint 를 기준선 위로 끌어올리고, muted 를 더 밝게 해 위계를 유지한다.
+   * 카드 배경(--surface #252525)이 가장 밝으므로 그것을 기준으로 잡는다.
+   *   text  #ebebeb ≈ 13.3:1
+   *   muted #adadad ≈  7.1:1
+   *   faint #909090 ≈  4.8:1
+   */
+  --text: #ebebeb;
+  --text-muted: #adadad;
+  --text-faint: #909090;
+
+  --accent: #4a8bfc;
+  --accent-contrast: #ffffff;
+
+  --status-todo: #9a9a9a;
+  --status-progress: #d9a441;
+  --status-done: #4caf7d;
+
+  --overlay: rgba(0, 0, 0, 0.6);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  --p-blue: #4a8bfc;
+  --p-violet: #9a7bf5;
+  --p-pink: #ef7bb4;
+  --p-red: #ec6a6a;
+  --p-orange: #ee9350;
+  --p-amber: #d9b23f;
+  --p-green: #52b788;
+  --p-teal: #3fb8b0;
+}
+
+/*
+ * 하이드레이션 전에는 data-theme 이 아직 없다.
+ * 그동안은 OS 선호색을 따라가 화면이 번쩍이는 것을 막는다.
+ * (인라인 부트스트랩 스크립트를 두지 않기 위한 선택 — CSP 에도 유리하다)
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #f7f7f5;
+    --bg-elevated: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #f1f1ef;
+    --border: #e3e3e0;
+    --border-strong: #cdcdc9;
+
+    /* 밝은 배경(#f7f7f5) 기준 muted ≈ 6.4:1, faint ≈ 4.8:1 */
+    --text: #1f1f1f;
+    --text-muted: #5a5a5a;
+    --text-faint: #6e6e6e;
+
+    --accent: #2f6fe4;
+
+    --status-todo: #8a8a8a;
+    --status-progress: #c08a1e;
+    --status-done: #2f9166;
+
+    --overlay: rgba(20, 20, 20, 0.35);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+
+    --p-blue: #2f6fe4;
+    --p-violet: #7b5fe0;
+    --p-pink: #d94f95;
+    --p-red: #d84f4f;
+    --p-orange: #d97a2f;
+    --p-amber: #b8901c;
+    --p-green: #349a68;
+    --p-teal: #2a9a93;
+  }
+}
+
+:root[data-theme='light'] {
+  --bg: #f7f7f5;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #f1f1ef;
+  --border: #e3e3e0;
+  --border-strong: #cdcdc9;
+
+  /* 밝은 배경(#f7f7f5) 기준 muted ≈ 6.4:1, faint ≈ 4.8:1 */
+  --text: #1f1f1f;
+  --text-muted: #5a5a5a;
+  --text-faint: #6e6e6e;
+
+  --accent: #2f6fe4;
+  --accent-contrast: #ffffff;
+
+  --status-todo: #8a8a8a;
+  --status-progress: #c08a1e;
+  --status-done: #2f9166;
+
+  --overlay: rgba(20, 20, 20, 0.35);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+
+  --p-blue: #2f6fe4;
+  --p-violet: #7b5fe0;
+  --p-pink: #d94f95;
+  --p-red: #d84f4f;
+  --p-orange: #d97a2f;
+  --p-amber: #b8901c;
+  --p-green: #349a68;
+  --p-teal: #2a9a93;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-faint: var(--text-faint);
+  --color-accent: var(--accent);
+}
+
+/* 프로젝트 색상 헬퍼 — 요소에 data-color="violet" 을 주면 --pc 가 정해진다 */
+[data-color='blue'] { --pc: var(--p-blue); }
+[data-color='violet'] { --pc: var(--p-violet); }
+[data-color='pink'] { --pc: var(--p-pink); }
+[data-color='red'] { --pc: var(--p-red); }
+[data-color='orange'] { --pc: var(--p-orange); }
+[data-color='amber'] { --pc: var(--p-amber); }
+[data-color='green'] { --pc: var(--p-green); }
+[data-color='teal'] { --pc: var(--p-teal); }
+
+/*
+ * 최소 44×44 터치 타깃 (Apple HIG / WCAG 2.5.5).
+ * 보이는 크기는 그대로 두고 눌리는 영역만 넓힌다 —
+ * 드래그의 대체 수단인 ⋮ 메뉴가 화면에서 가장 누르기 어려운 요소가 되면 안 된다.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tap-44 {
+  position: relative;
+}
+.tap-44::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* ------------------------------------------------------------------ */
+
+* {
+  min-width: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic',
+    'Apple SD Gothic Neo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* iOS 에서 폰트 16px 미만 입력 시 화면이 확대되는 것 방지 */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* 스크롤바 */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 99px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes vtm-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.pop-in {
+  animation: vtm-pop 0.14s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

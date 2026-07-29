@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --yes)",
+      "Bash(rm -rf tmapp)",
+      "Bash(npx --yes create-next-app@latest tmapp --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack --yes)",
+      "Bash(rm -rf C:/Users/jjh03/AppData/Local/Temp/claude/C--Users-jjh03-task-manager/319e2c31-fa26-4bcd-a431-629939c249e7/scratchpad/tmapp/.git)",
+      "Bash(cp -r C:/Users/jjh03/AppData/Local/Temp/claude/C--Users-jjh03-task-manager/319e2c31-fa26-4bcd-a431-629939c249e7/scratchpad/tmapp/. C:/Users/jjh03/task_manager/)"
+    ]
+  }
+}
