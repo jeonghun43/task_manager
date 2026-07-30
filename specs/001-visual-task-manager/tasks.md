@@ -109,6 +109,16 @@
 - [x] **T067** 과업별 뷰 정렬 토글 → 세그먼티드 컨트롤 (FR-12)
 - [x] **T068** `src/components/ui/Icon.tsx` — 선 아이콘 세트로 이모지·기하 문자 전면 교체, 우선순위는 방향 기호로 (FR-13)
 
+## Phase 11 — 큰 과업 순서 드래그 (FR-14)
+
+- [x] **T069** `Icon.tsx` — `grip` 아이콘 추가 (세로 2열 점, 드래그 손잡이의 표준 기호)
+- [x] **T070** `ProjectColumn.tsx` — `useSortable({ id: 'project:<id>' })`, 손잡이는 `setActivatorNodeRef` 로 헤더 grip 버튼에만. 컬럼이 하나면 `sortDisabled`
+- [x] **T071** `ProjectColumn.tsx` — `ProjectColumnGhost` 로 DragOverlay 축약 표현 (컬럼 전체 복제는 무겁고 드롭 위치를 가린다)
+- [x] **T072** `ProjectBoardView.tsx` — 가로 `SortableContext`, `resolveProjectId()` 로 드롭 대상(카드·컬럼 배경·컬럼 자체)을 큰 과업 id 로 환원
+- [x] **T073** 드롭 자리 미리보기 — 원래 컬럼을 점선 자리 표시로 바꾸고(`data-dragging-column` + globals.css `visibility:hidden`) `여기에 놓입니다` 힌트. 결과가 미리 보이므로 되돌리기 토스트는 두지 않는다
+- [x] **T074b** `boardCollisionDetection` — 컬럼 드래그 시 후보를 컬럼으로 한정하고 `closestCenter` 사용 (반 칸이면 자리가 열린다)
+- [x] **T074** 회귀 확인 — 카드의 컬럼 간 이동·같은 컬럼 재배치가 그대로 동작 (AC-16)
+
 ## 의존 관계
 
 ```
@@ -131,3 +141,5 @@ T005 → T006..T012 → T013,T014 → T015..T021 → T022,T023 → T024 → T025
 | AC-6 정렬 | T009, T027 |
 | FR-8 역산 플래너 | T037, T038, T041~T046 |
 | FR-9 인라인 날짜 편집 | T039, T040 |
+| FR-14 큰 과업 순서 드래그 | T069~T073 |
+| AC-15/AC-16 | T072, T073, T074 |

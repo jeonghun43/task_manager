@@ -41,6 +41,7 @@ export type IconName =
   | 'columns'
   | 'list'
   | 'sun-today'
+  | 'grip'
   | 'reset';
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -150,6 +151,17 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8" />
       <path d="M2.2 2.6v3.2h3.2" />
+    </>
+  ),
+  // 잡아서 끌 수 있다는 신호. 세로 점 두 줄 (표준 grip)
+  grip: (
+    <>
+      <circle cx="6" cy="4" r="0.95" />
+      <circle cx="10" cy="4" r="0.95" />
+      <circle cx="6" cy="8" r="0.95" />
+      <circle cx="10" cy="8" r="0.95" />
+      <circle cx="6" cy="12" r="0.95" />
+      <circle cx="10" cy="12" r="0.95" />
     </>
   ),
 };

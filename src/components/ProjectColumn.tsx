@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { humanDue } from '@/lib/date';
 import { projectProgress } from '@/lib/derive';
 import { useAppStore } from '@/store/useAppStore';
@@ -22,6 +23,8 @@ interface Props {
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
   onMoveProject: (project: Project, dir: -1 | 1) => void;
+  /** 컬럼이 하나뿐이거나 필터가 걸려 순서 변경이 의미 없을 때 */
+  sortDisabled?: boolean;
 }
 
 export default function ProjectColumn({
@@ -32,6 +35,7 @@ export default function ProjectColumn({
   onEditProject,
   onDeleteProject,
   onMoveProject,
+  sortDisabled = false,
 }: Props) {
   const addTask = useAppStore((s) => s.addTask);
   const allTasks = useAppStore((s) => s.tasks);
@@ -45,6 +49,25 @@ export default function ProjectColumn({
   const { setNodeRef, isOver } = useDroppable({
     id: `project-col:${project.id}`,
     data: { type: 'project-column', projectId: project.id },
+  });
+
+  /*
+   * 컬럼 자체도 끌어서 순서를 바꾼다.
+   * 컬럼 전체를 손잡이로 삼으면 카드 드래그·스크롤·버튼과 전부 부딪히므로
+   * 헤더의 grip 만 손잡이로 쓴다 (헌법 V: 드래그는 메뉴로도 가능해야 하므로 ⋮ 의 좌/우 이동은 그대로 남긴다).
+   */
+  const {
+    setNodeRef: setSortRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `project:${project.id}`,
+    data: { type: 'project', projectId: project.id },
+    disabled: sortDisabled,
   });
 
   const commit = () => {
@@ -97,17 +120,56 @@ export default function ProjectColumn({
 
   return (
     <section
+      ref={setSortRef}
       data-color={project.color}
-      className="flex w-[85vw] shrink-0 snap-start flex-col rounded-xl border sm:w-[300px]"
+      data-dragging-column={isDragging || undefined}
+      className="relative flex w-[85vw] shrink-0 snap-start flex-col rounded-xl border sm:w-[300px]"
       style={{
-        background: 'var(--bg-elevated)',
-        borderColor: isOver ? 'var(--pc)' : 'var(--border)',
+        background: isDragging ? 'transparent' : 'var(--bg-elevated)',
+        borderColor: isDragging || isOver ? 'var(--pc)' : 'var(--border)',
+        borderStyle: isDragging ? 'dashed' : 'solid',
         maxHeight: '100%',
+        transform: CSS.Translate.toString(transform),
+        transition,
       }}
     >
+      {/*
+        끄는 동안 원래 컬럼은 "여기에 놓인다"는 자리 표시로만 남는다.
+        내용을 지우지 않고 감추기만 하므로(globals.css) 폭·높이가 그대로여서 화면이 덜컹거리지 않는다.
+      */}
+      {isDragging && (
+        <div
+          data-drop-hint
+          className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl px-4"
+          style={{ background: 'color-mix(in srgb, var(--pc) 12%, transparent)' }}
+        >
+          <span
+            className="text-center text-[12.5px] font-medium leading-snug"
+            style={{ color: 'var(--pc)' }}
+          >
+            여기에 놓입니다
+          </span>
+        </div>
+      )}
       {/* 헤더 */}
       <div className="border-b p-3" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-start gap-2">
+          {!sortDisabled && (
+            <button
+              type="button"
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              aria-label={`${project.title} 순서 바꾸기`}
+              title="끌어서 과업 순서 바꾸기"
+              className="tap-44 -ml-1 mt-0.5 shrink-0 rounded-md p-0.5 transition-colors"
+              style={{ color: 'var(--text-faint)', cursor: 'grab', touchAction: 'none' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--pc)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
+            >
+              <Icon name="grip" size={14} />
+            </button>
+          )}
           <span
             className="mt-1 h-3.5 w-1 shrink-0 rounded-full"
             style={{ background: 'var(--pc)' }}
@@ -219,5 +281,43 @@ export default function ProjectColumn({
       </div>
 
     </section>
+  );
+}
+
+/**
+ * 컬럼을 끄는 동안 커서를 따라다니는 축약형.
+ * 컬럼 전체(카드 수십 장)를 복제하면 무겁고, 어디에 놓이는지도 오히려 가려진다.
+ */
+export function ProjectColumnGhost({
+  project,
+  taskCount,
+}: {
+  project: Project;
+  taskCount: number;
+}) {
+  return (
+    <div
+      data-color={project.color}
+      className="w-[300px] rotate-1 rounded-xl border p-3 shadow-xl"
+      style={{ background: 'var(--bg-elevated)', borderColor: 'var(--pc)' }}
+    >
+      <div className="flex items-start gap-2">
+        <span
+          className="mt-1 h-3.5 w-1 shrink-0 rounded-full"
+          style={{ background: 'var(--pc)' }}
+          aria-hidden
+        />
+        <h2 className="min-w-0 flex-1 text-[14px] font-semibold leading-snug break-words">
+          {project.title}
+        </h2>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={project.status} />
+        <PriorityBadge priority={project.priority} />
+        <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          할 일 {taskCount}개
+        </span>
+      </div>
+    </div>
   );
 }

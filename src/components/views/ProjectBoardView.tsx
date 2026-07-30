@@ -4,20 +4,46 @@ import { useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
+  closestCenter,
   closestCorners,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { compareByDeadline, filterTasks, projectMap, type TaskFilter } from '@/lib/derive';
 import { useAppStore } from '@/store/useAppStore';
 import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
 import Icon from '../ui/Icon';
 import type { Project, Task } from '@/lib/types';
-import ProjectColumn from '../ProjectColumn';
+import ProjectColumn, { ProjectColumnGhost } from '../ProjectColumn';
 import { TaskCardBody } from '../TaskCard';
 import { useBoardSensors } from '../useBoardSensors';
+
+/** 컬럼(큰 과업) 드래그 id 접두사. 카드 드롭 영역 `project-col:` 과 겹치지 않는다 */
+const PROJECT_DRAG = 'project:';
+
+/**
+ * 무엇을 끄느냐에 따라 후보를 갈라 준다.
+ *
+ * 컬럼을 끌 때 카드까지 후보에 넣으면, 옆 컬럼의 카드가 가장 가까운 대상으로 잡히는 일이 잦다.
+ * 그 경우 `over` 가 카드 id 라서 가로 SortableContext 는 자기 항목이 아니라고 보고 자리를 비켜주지 않는다
+ * — 한 칸 옆으로 옮기려는데 두세 칸을 끌고 가야 비로소 빈 자리가 나타나던 원인이다.
+ * 컬럼을 끌 때는 컬럼끼리만 겨루게 하고, 판정도 모서리가 아니라 중심으로 한다:
+ * 끌고 있는 컬럼의 중심이 옆 컬럼의 중심을 지나는 순간 자리가 열린다(반 칸이면 충분).
+ */
+const boardCollisionDetection: CollisionDetection = (args) => {
+  if (String(args.active.id).startsWith(PROJECT_DRAG)) {
+    return closestCenter({
+      ...args,
+      droppableContainers: args.droppableContainers.filter((c) =>
+        String(c.id).startsWith(PROJECT_DRAG),
+      ),
+    });
+  }
+  return closestCorners(args);
+};
 
 interface Props {
   filter: TaskFilter;
@@ -84,6 +110,19 @@ export default function ProjectBoardView({
   }, [tasks]);
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : undefined;
+  const activeProject =
+    activeId && activeId.startsWith(PROJECT_DRAG)
+      ? pmap.get(activeId.slice(PROJECT_DRAG.length))
+      : undefined;
+
+  /** 드롭 대상이 무엇이든(컬럼 배경 · 컬럼 자체 · 그 안의 카드) 소속 큰 과업 id 로 환원한다 */
+  const resolveProjectId = (overId: string): string | null => {
+    const overTask = tasks.find((t) => t.id === overId);
+    if (overTask) return overTask.projectId;
+    if (overId.startsWith('project-col:')) return overId.slice('project-col:'.length);
+    if (overId.startsWith(PROJECT_DRAG)) return overId.slice(PROJECT_DRAG.length);
+    return null;
+  };
 
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
 
@@ -92,17 +131,30 @@ export default function ProjectBoardView({
     const { active, over } = e;
     if (!over) return;
 
+    const activeIdStr = String(active.id);
+    const overId = String(over.id);
+
+    // ── 큰 과업 컬럼의 순서 바꾸기 ──
+    if (activeIdStr.startsWith(PROJECT_DRAG)) {
+      const movedId = activeIdStr.slice(PROJECT_DRAG.length);
+      const targetId = resolveProjectId(overId);
+      if (!targetId || targetId === movedId) return;
+
+      const ids = [...projects].sort((a, b) => a.order - b.order).map((p) => p.id);
+      const from = ids.indexOf(movedId);
+      const to = ids.indexOf(targetId);
+      if (from === -1 || to === -1) return;
+
+      // 놓일 자리를 드래그 내내 미리 보여주므로 결과가 놀랍지 않다 — 되돌리기 토스트는 두지 않는다
+      reorderProjects(arrayMove(ids, from, to));
+      return;
+    }
+
     const dragged = tasks.find((t) => t.id === active.id);
     if (!dragged) return;
 
-    // 드롭 대상이 컬럼 자체인지, 다른 카드 위인지 판별
-    const overId = String(over.id);
     const overTask = tasks.find((t) => t.id === overId);
-    const targetProjectId = overTask
-      ? overTask.projectId
-      : overId.startsWith('project-col:')
-        ? overId.slice('project-col:'.length)
-        : null;
+    const targetProjectId = resolveProjectId(overId);
     if (!targetProjectId) return;
 
     if (targetProjectId === dragged.projectId) {
@@ -139,7 +191,7 @@ export default function ProjectBoardView({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={boardCollisionDetection}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveId(null)}
@@ -185,37 +237,36 @@ export default function ProjectBoardView({
             className="inline-flex items-center gap-1 text-[11px]"
             style={{ color: 'var(--text-faint)' }}
           >
-            {boardSort === 'deadline' ? (
-              <>
-                <Icon name="calendar" size={12} />
-                날짜 없는 할 일은 뒤로
-              </>
-            ) : (
-              <>
-                <Icon name="more-vertical" size={12} />
-                끌어서 순서 바꾸기
-              </>
-            )}
+            <Icon name="grip" size={12} />
+            {boardSort === 'deadline'
+              ? '큰 과업은 손잡이로 순서 변경 · 날짜 없는 할 일은 뒤로'
+              : '큰 과업은 손잡이로, 할 일은 카드째 끌어서 순서 변경'}
           </span>
         </div>
 
         <div className="thin-scroll flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:snap-none">
-          {orderedProjects.map((p) => {
-            const shown = byProject.get(p.id) ?? [];
-            const total = totalByProject.get(p.id) ?? 0;
-            return (
-              <ProjectColumn
-                key={p.id}
-                project={p}
-                tasks={shown}
-                hiddenCount={total - shown.length}
-                onEditTask={onEditTask}
-                onEditProject={onEditProject}
-                onDeleteProject={onDeleteProject}
-                onMoveProject={moveProject}
-              />
-            );
-          })}
+          <SortableContext
+            items={orderedProjects.map((p) => `${PROJECT_DRAG}${p.id}`)}
+            strategy={horizontalListSortingStrategy}
+          >
+            {orderedProjects.map((p) => {
+              const shown = byProject.get(p.id) ?? [];
+              const total = totalByProject.get(p.id) ?? 0;
+              return (
+                <ProjectColumn
+                  key={p.id}
+                  project={p}
+                  tasks={shown}
+                  hiddenCount={total - shown.length}
+                  onEditTask={onEditTask}
+                  onEditProject={onEditProject}
+                  onDeleteProject={onDeleteProject}
+                  onMoveProject={moveProject}
+                  sortDisabled={orderedProjects.length < 2}
+                />
+              );
+            })}
+          </SortableContext>
 
           <button
             type="button"
@@ -231,6 +282,12 @@ export default function ProjectBoardView({
       </div>
 
       <DragOverlay dropAnimation={null}>
+        {activeProject && (
+          <ProjectColumnGhost
+            project={activeProject}
+            taskCount={totalByProject.get(activeProject.id) ?? 0}
+          />
+        )}
         {activeTask && (
           <div className="w-[280px] rotate-1 opacity-95">
             <TaskCardBody
