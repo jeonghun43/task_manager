@@ -52,7 +52,8 @@ export type DeadlineGroupKey =
   | 'tomorrow'
   | 'week'
   | 'later'
-  | 'none';
+  | 'none'
+  | 'done';
 
 export const DEADLINE_GROUPS: { key: DeadlineGroupKey; label: string; hint: string }[] = [
   { key: 'overdue', label: '지남', hint: '마감일이 지났어요' },
@@ -61,9 +62,17 @@ export const DEADLINE_GROUPS: { key: DeadlineGroupKey; label: string; hint: stri
   { key: 'week', label: '이번 주', hint: '7일 이내' },
   { key: 'later', label: '이후', hint: '' },
   { key: 'none', label: '기한 없음', hint: '' },
+  { key: 'done', label: '끝냄', hint: '' },
 ];
 
-export function deadlineGroupOf(dueDate?: string): DeadlineGroupKey {
+/**
+ * 완료한 항목은 원래 마감일 그룹에서 빼내 맨 아래 `끝냄` 으로 모은다 (FR-15).
+ *
+ * 그룹 안에서만 아래로 내리는 것으로는 부족하다. 지난 일을 다 끝냈다면 `지남` 그룹 전체가
+ * 완료 항목으로 채워진 채 화면 맨 위를 차지하고, 정작 오늘 할 일은 그 아래로 밀린다.
+ */
+export function deadlineGroupOf(dueDate?: string, status?: Task['status']): DeadlineGroupKey {
+  if (status === 'done') return 'done';
   if (!dueDate) return 'none';
   const n = daysFromToday(dueDate);
   if (n < 0) return 'overdue';
@@ -74,7 +83,19 @@ export function deadlineGroupOf(dueDate?: string): DeadlineGroupKey {
 }
 
 /**
+ * 끝낸 일은 어느 목록에서든 맨 아래로 (FR-15).
+ *
+ * 목록의 첫 화면은 "지금 해야 할 것"이어야 한다. 완료 항목이 원래 자리에 남아 있으면
+ * 남은 일을 보려고 스크롤해야 하고, 목록이 길수록 그 비용이 커진다.
+ * 숨기지는 않는다 — 무엇을 해냈는지 보이는 것에도 값이 있고, 숨기려면 이미 `완료 숨기기` 필터가 있다.
+ */
+export function compareDoneLast(a: Task, b: Task): number {
+  return (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0);
+}
+
+/**
  * 마감기한 뷰 정렬 (FR-3.3 / AC-6)
+ *   0) 완료한 것은 맨 뒤 (FR-15)
  *   1) 마감일 오름차순 (없는 건 맨 뒤)
  *   2) 같은 날짜면 우선순위 높은 것이 위
  *   3) 큰 과업 순서
@@ -85,6 +106,9 @@ export function compareByDeadline(
   b: Task,
   projects: Map<string, Project>,
 ): number {
+  const done = compareDoneLast(a, b);
+  if (done !== 0) return done;
+
   const ad = a.dueDate ?? '';
   const bd = b.dueDate ?? '';
   if (ad !== bd) {

@@ -119,6 +119,13 @@
 - [x] **T074b** `boardCollisionDetection` — 컬럼 드래그 시 후보를 컬럼으로 한정하고 `closestCenter` 사용 (반 칸이면 자리가 열린다)
 - [x] **T074** 회귀 확인 — 카드의 컬럼 간 이동·같은 컬럼 재배치가 그대로 동작 (AC-16)
 
+## Phase 12 — 끝낸 일 아래로 (FR-15)
+
+- [x] **T075** `derive.ts` — `compareDoneLast()` 신설, `compareByDeadline` 의 첫 번째 정렬 키로 편입 (과업별 `마감일 순` · 상태 · 캘린더 날짜별 목록에 함께 적용)
+- [x] **T076** `ProjectBoardView.tsx` — `직접 순서` 모드에도 `compareDoneLast() || order` 적용
+- [x] **T077** `derive.ts` — `DEADLINE_GROUPS` 에 `끝냄` 추가, `deadlineGroupOf(dueDate, status)` 가 완료 항목을 원래 날짜 그룹에서 빼낸다
+- [x] **T078** `DeadlineView.tsx` — `끝냄` 그룹 제목은 흐리게(주의를 끌지 않도록), `완료 숨기기` 필터와 공존 확인
+
 ## 의존 관계
 
 ```
@@ -142,4 +149,6 @@ T005 → T006..T012 → T013,T014 → T015..T021 → T022,T023 → T024 → T025
 | FR-8 역산 플래너 | T037, T038, T041~T046 |
 | FR-9 인라인 날짜 편집 | T039, T040 |
 | FR-14 큰 과업 순서 드래그 | T069~T073 |
+| FR-15 끝낸 일 아래로 | T075~T078 |
+| AC-17/AC-18/AC-19 | T075, T076, T077 |
 | AC-15/AC-16 | T072, T073, T074 |

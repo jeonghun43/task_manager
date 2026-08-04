@@ -34,7 +34,7 @@ export default function DeadlineView({ filter, onEditTask }: Props) {
     );
     const m = new Map<DeadlineGroupKey, Task[]>();
     for (const g of DEADLINE_GROUPS) m.set(g.key, []);
-    for (const t of visible) m.get(deadlineGroupOf(t.dueDate))?.push(t);
+    for (const t of visible) m.get(deadlineGroupOf(t.dueDate, t.status))?.push(t);
     return m;
   }, [tasks, pmap, filter]);
 
@@ -57,13 +57,16 @@ export default function DeadlineView({ filter, onEditTask }: Props) {
           const list = groups.get(g.key) ?? [];
           if (list.length === 0) return null;
           const urgent = g.key === 'overdue' || g.key === 'today';
+          // 끝낸 것은 기록으로 남길 뿐 주의를 끌 필요가 없다
+          const headingColor =
+            g.key === 'done' ? 'var(--text-faint)' : urgent ? 'var(--p-red)' : 'var(--text)';
 
           return (
             <section key={g.key}>
               <div className="sticky top-0 z-10 -mx-1 mb-2 flex items-baseline gap-2 px-1 py-1.5 backdrop-blur" style={{ background: 'color-mix(in srgb, var(--bg) 85%, transparent)' }}>
                 <h2
                   className="text-[13px] font-semibold"
-                  style={{ color: urgent ? 'var(--p-red)' : 'var(--text)' }}
+                  style={{ color: headingColor }}
                 >
                   {g.label}
                 </h2>

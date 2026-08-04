@@ -11,7 +11,13 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { compareByDeadline, filterTasks, projectMap, type TaskFilter } from '@/lib/derive';
+import {
+  compareByDeadline,
+  compareDoneLast,
+  filterTasks,
+  projectMap,
+  type TaskFilter,
+} from '@/lib/derive';
 import { useAppStore } from '@/store/useAppStore';
 import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
@@ -93,11 +99,12 @@ export default function ProjectBoardView({
     for (const p of projects) m.set(p.id, []);
     for (const t of visible) m.get(t.projectId)?.push(t);
     // 마감일 순: 날짜가 있는 것이 앞, 같은 날짜면 우선순위, 날짜가 없으면 입력 순서로 자연히 수렴한다
+    // 직접 순서로 보더라도 완료한 것은 아래로 내린다 — 순서를 정하는 대상은 아직 남은 일이다
     for (const list of m.values()) {
       list.sort(
         boardSort === 'deadline'
           ? (a, b) => compareByDeadline(a, b, pmap)
-          : (a, b) => a.order - b.order,
+          : (a, b) => compareDoneLast(a, b) || a.order - b.order,
       );
     }
     return m;
