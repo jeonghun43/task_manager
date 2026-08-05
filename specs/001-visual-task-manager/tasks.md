@@ -126,6 +126,8 @@
 - [x] **T077** `derive.ts` — `DEADLINE_GROUPS` 에 `끝냄` 추가, `deadlineGroupOf(dueDate, status)` 가 완료 항목을 원래 날짜 그룹에서 빼낸다
 - [x] **T078** `DeadlineView.tsx` — `끝냄` 그룹 제목은 흐리게(주의를 끌지 않도록), `완료 숨기기` 필터와 공존 확인
 
+- [x] **T079** `CalendarView.tsx` — 날짜 이동의 되돌리기 토스트 제거 (FR-10.3)
+
 ## 의존 관계
 
 ```

@@ -24,7 +24,6 @@ import { PRIORITY_RANK } from '@/lib/constants';
 import { backwardSchedule, daysUntil } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
 import { usePlanStore } from '@/store/usePlanStore';
-import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
 import type { DateStr, Project, Task } from '@/lib/types';
 import { StaticTaskCard } from '../TaskCard';
@@ -48,8 +47,6 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
   const projects = useAppStore((s) => s.projects);
   const tasks = useAppStore((s) => s.tasks);
   const updateTask = useAppStore((s) => s.updateTask);
-  const restoreTasks = useAppStore((s) => s.restoreTasks);
-  const showUndo = useToastStore((s) => s.showUndo);
 
   const anchor = useUiStore((s) => s.calendarAnchor);
   const setAnchor = useUiStore((s) => s.setCalendarAnchor);
@@ -163,17 +160,12 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
       return;
     }
 
-    // 미리보기가 아닌 실제 변경 — 되돌릴 수 있게 한다
-    const before = tasks.find((t) => t.id === taskId);
+    /*
+     * 달력에서 항목을 옮기는 일은 되돌리기를 붙이지 않는다.
+     * 놓은 자리가 곧 결과라서 잘못 놓았는지 바로 보이고, 다시 끌면 그만이다.
+     * 계획을 세우는 동안에는 이 동작을 연달아 하므로 매번 토스트가 뜨면 달력만 가린다.
+     */
     updateTask(taskId, { dueDate: date });
-    if (before) {
-      showUndo(
-        date
-          ? `"${before.title}" 마감일을 ${formatKorean(date)}로 옮겼어요`
-          : `"${before.title}" 마감일을 지웠어요`,
-        () => restoreTasks([before]),
-      );
-    }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
