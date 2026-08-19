@@ -128,6 +128,20 @@
 
 - [x] **T079** `CalendarView.tsx` — 날짜 이동의 되돌리기 토스트 제거 (FR-10.3)
 
+## Phase 13 — 기기 간 동기화 (FR-16)
+
+- [x] **T080** `@supabase/supabase-js` 설치
+- [x] **T081** `supabase/schema.sql` — projects·tasks 표, RLS 정책, realtime publication. id 와 시각 필드는 text (UUID 아닌 id 와 ISO 문자열을 글자 그대로 왕복시키기 위해), due_date 만 date
+- [x] **T082** `src/lib/supabase/client.ts` — 환경변수가 없으면 null 을 돌려주어 동기화를 선택 기능으로 만든다
+- [x] **T083** `src/lib/storage/supabase.ts` — `StorageAdapter` 구현. 마지막 서버 상태와 비교해 델타만 upsert/delete
+- [x] **T084** `src/lib/merge.ts` — 항목 단위 `updatedAt` 병합 (로그인 순간 1회)
+- [x] **T085** `useAppStore.replaceAll()` — 저장소 교체 후 상태를 맞추는 단일 경로
+- [x] **T086** `src/store/useSyncStore.ts` — 세션 감시 · 로그인/로그아웃 · 어댑터 교체 · realtime 수신(자기 쓰기 되받기 방지)
+- [x] **T087** `Toolbar.tsx` — 설정 메뉴의 동기화 항목 (환경변수 없으면 렌더하지 않음), `cloud`/`cloud-off` 아이콘
+- [x] **T088** `AppShell.tsx` — 로컬 하이드레이션 뒤 `initSync()`, 언마운트 시 `teardownSync()`
+- [x] **T089** `docs/sync-setup.md`, `.env.local.example`
+- [ ] **T090** 실제 Supabase 프로젝트로 end-to-end 검증 (AC-21~24) — 사용자 계정 생성 후
+
 ## 의존 관계
 
 ```
@@ -152,5 +166,6 @@ T005 → T006..T012 → T013,T014 → T015..T021 → T022,T023 → T024 → T025
 | FR-9 인라인 날짜 편집 | T039, T040 |
 | FR-14 큰 과업 순서 드래그 | T069~T073 |
 | FR-15 끝낸 일 아래로 | T075~T078 |
+| FR-16 기기 간 동기화 | T080~T089 |
 | AC-17/AC-18/AC-19 | T075, T076, T077 |
 | AC-15/AC-16 | T072, T073, T074 |

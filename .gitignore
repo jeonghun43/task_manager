@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 예시 파일은 키가 아니라 문서다 — docs/sync-setup.md 가 참조한다
+!.env.local.example

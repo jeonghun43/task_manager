@@ -5,6 +5,7 @@ import { todayStr } from '@/lib/date';
 import type { TaskFilter } from '@/lib/derive';
 import { useAppStore } from '@/store/useAppStore';
 import { usePlanStore } from '@/store/usePlanStore';
+import { teardownSync, useSyncStore } from '@/store/useSyncStore';
 import { useUiStore } from '@/store/useUiStore';
 import type { Project, Task, ViewKey } from '@/lib/types';
 import ConfirmDialog from './ConfirmDialog';
@@ -26,6 +27,7 @@ export default function AppShell() {
   const deleteProject = useAppStore((s) => s.deleteProject);
   const tasks = useAppStore((s) => s.tasks);
 
+  const initSync = useSyncStore((s) => s.init);
   const hydrateUi = useUiStore((s) => s.hydrateUi);
   const uiHydrated = useUiStore((s) => s.uiHydrated);
   const view = useUiStore((s) => s.view);
@@ -69,7 +71,14 @@ export default function AppShell() {
   useEffect(() => {
     hydrateUi();
     void hydrate();
-  }, [hydrate, hydrateUi]);
+    /*
+     * 동기화는 로컬 하이드레이션 뒤에 붙는다.
+     * 화면은 항상 로컬 데이터로 즉시 그려지고(오프라인에서도 뜬다),
+     * 로그인되어 있으면 그 위에 서버 상태가 얹힌다.
+     */
+    void initSync();
+    return () => teardownSync();
+  }, [hydrate, hydrateUi, initSync]);
 
   const filter: TaskFilter = useMemo(
     () => ({ search, projectId: projectFilter, priority: priorityFilter, hideCompleted }),

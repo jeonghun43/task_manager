@@ -5,6 +5,7 @@ import { PRIORITY_ICON, PRIORITY_LABEL, PRIORITY_ORDER } from '@/lib/constants';
 import { isFilterActive, type TaskFilter } from '@/lib/derive';
 import { todayStr } from '@/lib/date';
 import { useAppStore } from '@/store/useAppStore';
+import { useSyncStore } from '@/store/useSyncStore';
 import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
 import type { Priority } from '@/lib/types';
@@ -33,6 +34,12 @@ export default function Toolbar({ filter, onNewProject, onNewTask }: Props) {
   const setPriorityFilter = useUiStore((s) => s.setPriorityFilter);
   const setHideCompleted = useUiStore((s) => s.setHideCompleted);
   const resetFilters = useUiStore((s) => s.resetFilters);
+
+  const syncConfigured = useSyncStore((s) => s.configured);
+  const syncState = useSyncStore((s) => s.state);
+  const syncEmail = useSyncStore((s) => s.email);
+  const signIn = useSyncStore((s) => s.signIn);
+  const signOut = useSyncStore((s) => s.signOut);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -101,7 +108,32 @@ export default function Toolbar({ filter, onNewProject, onNewTask }: Props) {
     },
   ];
 
+  /*
+   * 동기화 항목은 환경변수가 설정된 배포에서만 나타난다.
+   * 설정하지 않은 채로도 앱은 지금까지처럼 이 기기 안에서 온전히 동작한다.
+   */
+  const syncItems: MenuItem[] = !syncConfigured
+    ? []
+    : [
+        { kind: 'header', label: '동기화' },
+        syncState === 'synced'
+          ? {
+              kind: 'item',
+              label: `로그아웃 (${syncEmail ?? '연결됨'})`,
+              icon: <Icon name="cloud-off" size={14} />,
+              onSelect: () => void signOut(),
+            }
+          : {
+              kind: 'item',
+              label: syncState === 'connecting' ? '연결하는 중…' : '구글 로그인해서 기기 간 동기화',
+              icon: <Icon name="cloud" size={14} />,
+              onSelect: () => void signIn(),
+            },
+        { kind: 'divider' },
+      ];
+
   const dataItems: MenuItem[] = [
+    ...syncItems,
     { kind: 'header', label: '화면' },
     {
       kind: 'item',

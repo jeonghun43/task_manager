@@ -58,6 +58,12 @@ export interface AppState {
    */
   restoreTasks: (snapshots: Task[]) => void;
 
+  /**
+   * 저장소를 갈아끼운 뒤 화면 상태를 통째로 맞춘다 (로그인/로그아웃).
+   * `persist` 를 타므로 새 어댑터로 곧바로 한 번 저장된다 — 로컬에만 있던 데이터가 서버로 올라가는 경로.
+   */
+  replaceAll: (data: AppData) => void;
+
   // 데이터 전체
   exportJson: () => string;
   importJson: (json: string) => { ok: boolean; message: string };
@@ -279,6 +285,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   /* ---------------------------- 데이터 전체 ---------------------------- */
+
+  replaceAll: (data) => {
+    set({ ...persist({ projects: data.projects, tasks: data.tasks }), hydrated: true });
+  },
 
   exportJson: () => JSON.stringify(snapshot(get()), null, 2),
 

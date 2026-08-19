@@ -42,6 +42,8 @@ export type IconName =
   | 'list'
   | 'sun-today'
   | 'grip'
+  | 'cloud'
+  | 'cloud-off'
   | 'reset';
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -151,6 +153,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8" />
       <path d="M2.2 2.6v3.2h3.2" />
+    </>
+  ),
+  cloud: <path d="M4.6 12.4a2.9 2.9 0 0 1 .3-5.78 3.9 3.9 0 0 1 7.4.6 2.6 2.6 0 0 1-.5 5.18z" />,
+  'cloud-off': (
+    <>
+      <path d="M4.6 12.4a2.9 2.9 0 0 1 .3-5.78 3.9 3.9 0 0 1 7.4.6 2.6 2.6 0 0 1-.5 5.18z" />
+      <path d="M2.6 2.6 13.4 13.4" />
     </>
   ),
   // 잡아서 끌 수 있다는 신호. 세로 점 두 줄 (표준 grip)
