@@ -31,6 +31,11 @@ export interface AppState {
   projects: Project[];
   tasks: Task[];
   hydrated: boolean;
+  /**
+   * 지금 화면의 데이터가 **우리가 만들어 보여준 샘플이며 아직 손대지 않았다** 는 뜻 (FR-17).
+   * 사용자가 무엇이든 바꾸면 false 가 되고, 그때부터 "이 사람의 데이터" 다.
+   */
+  isSample: boolean;
 
   hydrate: () => Promise<void>;
 
@@ -87,27 +92,39 @@ function pickColor(projects: Project[]): ProjectColor {
   return best;
 }
 
-/** 저장 후 상태를 반환하는 헬퍼 — 모든 변경 액션이 이걸 거친다. */
+/**
+ * 저장 후 상태를 반환하는 헬퍼 — 모든 변경 액션이 이걸 거친다.
+ *
+ * 여기를 지난다는 것은 곧 **사용자가 데이터를 건드렸다**는 뜻이므로 샘플 표시를 뗀다.
+ * 표시를 떼는 지점을 액션마다 흩어두면 언젠가 하나를 빠뜨린다. 통로가 하나뿐이라 여기 둔다.
+ */
 function persist(next: Pick<AppState, 'projects' | 'tasks'>) {
   void adapter.save(snapshot(next));
-  return next;
+  return { ...next, isSample: false };
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   tasks: [],
   hydrated: false,
+  isSample: false,
 
   hydrate: async () => {
     if (get().hydrated) return;
     const loaded = await adapter.load();
     if (loaded) {
-      set({ projects: loaded.projects, tasks: loaded.tasks, hydrated: true });
+      set({
+        projects: loaded.projects,
+        tasks: loaded.tasks,
+        isSample: loaded.sample === true,
+        hydrated: true,
+      });
     } else {
       // 최초 실행: 구조를 보여주는 샘플로 시작한다 (FR-6.3)
+      // persist() 를 타지 않고 직접 저장한다 — 이건 사용자의 변경이 아니므로 샘플 표시를 남긴다
       const seed = createSeedData();
-      void adapter.save(seed);
-      set({ projects: seed.projects, tasks: seed.tasks, hydrated: true });
+      void adapter.save({ ...seed, sample: true });
+      set({ projects: seed.projects, tasks: seed.tasks, isSample: true, hydrated: true });
     }
   },
 

@@ -114,11 +114,15 @@ export default function AppShell() {
     <div className="flex h-dvh flex-col">
       <header className="shrink-0 px-4 pt-4">
         <div className="mb-3 flex items-center gap-3">
-          <h1 className="truncate text-[22px] font-bold tracking-tight sm:text-[26px]">
+          {/*
+            좁은 화면에서는 제목이 줄어들고 툴바가 온전히 남아야 한다.
+            반대로 두면 오른쪽 끝의 로그인 버튼이 잘려 나간다 — 새 기기에서 가장 먼저 눌러야 할 버튼이다.
+          */}
+          <h1 className="min-w-0 flex-1 truncate text-[22px] font-bold tracking-tight sm:text-[26px]">
             정정쓰 TASK MANAGER
           </h1>
 
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <Toolbar filter={filter} onNewProject={openNewProject} onNewTask={openNewTask} />
           </div>
         </div>

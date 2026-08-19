@@ -42,6 +42,7 @@ export type IconName =
   | 'list'
   | 'sun-today'
   | 'grip'
+  | 'user'
   | 'cloud'
   | 'cloud-off'
   | 'reset';
@@ -54,10 +55,16 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   filter: <path d="M2.5 3.5h11l-4.2 5v4.2l-2.6 1.3V8.5z" />,
+  /*
+   * 톱니바퀴. 예전 아이콘은 원 + 8방향 방사선이라 바로 아래 `sun` 과 같은 그림이었고,
+   * 실제로 "해 모양" 으로 읽혔다. 둘을 가르는 것은 **바깥 링**이다 —
+   * 해는 살이 공중에 떠 있고, 톱니는 링에 붙어 있다.
+   */
   settings: (
     <>
-      <circle cx="8" cy="8" r="2.1" />
-      <path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6" />
+      <circle cx="8" cy="8" r="2.2" />
+      <circle cx="8" cy="8" r="5.2" />
+      <path d="M8 2.8V1.5M8 13.2v1.3M13.2 8h1.3M2.8 8H1.5M11.68 4.32l.92-.92M4.32 11.68l-.92.92M11.68 11.68l.92.92M4.32 4.32l-.92-.92" />
     </>
   ),
   plus: <path d="M8 3.2v9.6M3.2 8h9.6" />,
@@ -153,6 +160,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8" />
       <path d="M2.2 2.6v3.2h3.2" />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="8" cy="5.6" r="2.6" />
+      <path d="M2.9 13.6a5.1 5.1 0 0 1 10.2 0" />
     </>
   ),
   cloud: <path d="M4.6 12.4a2.9 2.9 0 0 1 .3-5.78 3.9 3.9 0 0 1 7.4.6 2.6 2.6 0 0 1-.5 5.18z" />,

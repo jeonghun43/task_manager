@@ -52,6 +52,8 @@ export default function Menu({ items, trigger, label, align = 'right' }: Props) 
       <button
         type="button"
         aria-label={label}
+        // 아이콘만 있는 버튼은 스크린 리더는 읽지만 마우스 사용자는 눌러봐야 안다 (FR-18 F4)
+        title={label}
         aria-haspopup="menu"
         aria-expanded={open}
         onPointerDown={(e) => e.stopPropagation()}
