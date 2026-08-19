@@ -14,6 +14,11 @@ export interface Toast {
   message: string;
   /** 있으면 "실행 취소" 버튼이 붙는다 */
   undo?: () => void;
+  /**
+   * 되돌리기가 아닌 다음 행동. 라벨을 직접 준다.
+   * 되돌리기 버튼을 빌려 쓰면 "실행 취소" 라고 적힌 버튼이 엉뚱한 일을 하게 된다.
+   */
+  action?: { label: string; run: () => void };
 }
 
 interface ToastState {
@@ -22,6 +27,8 @@ interface ToastState {
   showUndo: (message: string, undo: () => void) => void;
   /** 단순 알림 */
   show: (message: string) => void;
+  /** 알림 + 다음 행동으로 가는 길 */
+  showAction: (message: string, label: string, run: () => void) => void;
   dismiss: (id: number) => void;
 }
 
@@ -33,9 +40,9 @@ let seq = 0;
 const LIFETIME_MS = 10000;
 
 export const useToastStore = create<ToastState>((set, get) => {
-  const push = (message: string, undo?: () => void) => {
+  const push = (message: string, undo?: () => void, action?: Toast['action']) => {
     const id = ++seq;
-    set((s) => ({ toasts: [...s.toasts, { id, message, undo }] }));
+    set((s) => ({ toasts: [...s.toasts, { id, message, undo, action }] }));
     if (typeof window !== 'undefined') {
       window.setTimeout(() => get().dismiss(id), LIFETIME_MS);
     }
@@ -45,6 +52,7 @@ export const useToastStore = create<ToastState>((set, get) => {
     toasts: [],
     showUndo: (message, undo) => push(message, undo),
     show: (message) => push(message),
+    showAction: (message, label, run) => push(message, undefined, { label, run }),
     dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   };
 });

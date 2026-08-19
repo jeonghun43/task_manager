@@ -153,6 +153,7 @@ export default function AppShell() {
             filter={filter}
             onEditTask={openEditTask}
             onEditProject={openEditProject}
+            onGoToView={requestView}
           />
         )}
       </main>

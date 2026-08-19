@@ -101,22 +101,17 @@ async function attach(session: Session, set: SetState) {
     });
     const server = await adapter.load();
     const local = localSnapshot();
-    const localIsSample = useAppStore.getState().isSample;
+    const localHasData = local.projects.length > 0 || local.tasks.length > 0;
 
     /*
      * 로그인 순간 딱 한 번의 병합.
      *
-     *  · 이 기기의 데이터가 아직 손대지 않은 **샘플이면 올리지 않고 버린다** (FR-17).
-     *    샘플은 구조를 설명하려고 우리가 만들어 보여준 것이지 사용자의 일정이 아니다.
-     *    이 구분이 없으면 새 기기에서 로그인할 때마다 샘플 한 벌이 계정에 더 쌓인다.
-     *  · 실제 데이터라면, 서버가 비었을 때 그대로 올리고(첫 로그인에서 잃지 않는다)
-     *    양쪽에 있으면 항목별로 updatedAt 이 나중인 쪽이 남는다.
+     * 이제 이 기기에 남아 있는 것은 **사용자가 직접 만들었거나 직접 불러온 것뿐**이다
+     * (첫 실행에 샘플을 자동으로 만들지 않는다 — FR-17). 그래서 조건 없이 합쳐도 안전하다.
+     * 서버가 비었으면 그대로 올리고(첫 로그인에서 잃지 않는다),
+     * 양쪽에 있으면 항목별로 updatedAt 이 나중인 쪽이 남는다.
      */
-    const merged: AppData = localIsSample
-      ? (server ?? { version: 1, projects: [], tasks: [] })
-      : server
-        ? mergeAppData(local, server)
-        : local;
+    const merged: AppData = server ? mergeAppData(local, server) : local;
 
     setStorageAdapter(adapter);
     useAppStore.getState().replaceAll(merged);
@@ -124,13 +119,13 @@ async function attach(session: Session, set: SetState) {
     // 로그인 결과로 화면의 일정이 바뀔 수 있다. 무슨 일이 있었는지 말해주지 않으면
     // "내 일정이 사라졌다" 로 읽힌다.
     useToastStore.getState().show(
-      localIsSample
-        ? server
-          ? '계정에 저장된 일정을 불러왔어요'
-          : '계정에 저장된 일정이 없어요. 여기서 새로 시작해요'
-        : server
+      server
+        ? localHasData
           ? '이 기기의 일정과 계정의 일정을 합쳤어요'
-          : '이 기기의 일정을 계정에 올렸어요',
+          : '계정에 저장된 일정을 불러왔어요'
+        : localHasData
+          ? '이 기기의 일정을 계정에 올렸어요'
+          : '계정에 저장된 일정이 없어요. 여기서 새로 시작해요',
     );
 
     subscribeRealtime();

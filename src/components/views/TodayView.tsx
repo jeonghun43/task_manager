@@ -25,6 +25,7 @@ export default function TodayView({ filter, onEditTask, onGoToView }: Props) {
   const projects = useAppStore((s) => s.projects);
   const tasks = useAppStore((s) => s.tasks);
   const setTaskDueDates = useAppStore((s) => s.setTaskDueDates);
+  const loadSeed = useAppStore((s) => s.loadSeed);
   const restoreTasks = useAppStore((s) => s.restoreTasks);
   const showUndo = useToastStore((s) => s.showUndo);
 
@@ -124,30 +125,71 @@ export default function TodayView({ filter, onEditTask, onGoToView }: Props) {
           </section>
         )}
 
-        {/* 아무 계획도 없을 때 — 다음 행동으로 안내한다 */}
+        {/*
+          아무 계획도 없을 때 — 다음 행동으로 안내한다.
+
+          큰 과업이 아예 없는 경우와 있는데 날짜만 안 정한 경우는 다음 행동이 다르다.
+          첫 실행에 샘플을 자동으로 만들지 않게 된 뒤로(FR-17) 처음 여는 화면이 바로 여기이므로,
+          "과업이 없음" 쪽이 앱의 첫인사 노릇을 한다.
+        */}
         {nothingPlanned && (
           <div
             className="rounded-xl border border-dashed px-5 py-8 text-center"
             style={{ borderColor: 'var(--border-strong)' }}
           >
-            <p className="text-[14px] font-medium">오늘 할 일이 정해져 있지 않아요</p>
-            <p
-              className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              큰 과업의 마감일에서 거꾸로 날짜를 나누면
-              <br />
-              오늘 해야 할 몫이 여기에 나타나요.
-            </p>
-            <button
-              type="button"
-              onClick={() => onGoToView('calendar')}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium"
-              style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
-            >
-              <Icon name="rewind" size={14} />
-              역산 배치하러 가기
-            </button>
+            {projects.length === 0 ? (
+              <>
+                <p className="text-[14px] font-medium">아직 아무것도 없어요</p>
+                <p
+                  className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  이루려는 목표를 <b>큰 과업</b>으로 만들고,
+                  <br />
+                  그 아래에 오늘 착수할 수 있는 <b>할 일</b>로 쪼개보세요.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onGoToView('project')}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium"
+                    style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                  >
+                    <Icon name="plus" size={14} />첫 큰 과업 만들기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loadSeed()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-[13px]"
+                    style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
+                  >
+                    <Icon name="sparkle" size={14} />
+                    예시로 둘러보기
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[14px] font-medium">오늘 할 일이 정해져 있지 않아요</p>
+                <p
+                  className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  큰 과업의 마감일에서 거꾸로 날짜를 나누면
+                  <br />
+                  오늘 해야 할 몫이 여기에 나타나요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onGoToView('calendar')}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-medium"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                >
+                  <Icon name="rewind" size={14} />
+                  역산 배치하러 가기
+                </button>
+              </>
+            )}
           </div>
         )}
 

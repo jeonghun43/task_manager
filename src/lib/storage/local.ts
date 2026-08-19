@@ -11,8 +11,7 @@ function normalize(raw: unknown): AppData | null {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Partial<AppData>;
   if (!Array.isArray(d.projects) || !Array.isArray(d.tasks)) return null;
-  // sample 표시를 함께 실어 나른다 — 새로고침해도 "아직 손대지 않은 샘플" 이라는 사실이 유지되어야 한다
-  return { version: 1, sample: d.sample === true || undefined, projects: d.projects, tasks: d.tasks };
+  return { version: 1, projects: d.projects, tasks: d.tasks };
 }
 
 export class LocalStorageAdapter implements StorageAdapter {

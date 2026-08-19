@@ -75,6 +75,7 @@ export default function ProjectBoardView({
   const moveTask = useAppStore((s) => s.moveTask);
   const reorderTasksInProject = useAppStore((s) => s.reorderTasksInProject);
   const reorderProjects = useAppStore((s) => s.reorderProjects);
+  const loadSeed = useAppStore((s) => s.loadSeed);
   const restoreTasks = useAppStore((s) => s.restoreTasks);
   const showUndo = useToastStore((s) => s.showUndo);
   const boardSort = useUiStore((s) => s.boardSort);
@@ -192,7 +193,7 @@ export default function ProjectBoardView({
   };
 
   if (projects.length === 0) {
-    return <EmptyState onNewProject={onNewProject} />;
+    return <EmptyState onNewProject={onNewProject} onLoadSeed={loadSeed} />;
   }
 
   return (
@@ -309,7 +310,13 @@ export default function ProjectBoardView({
   );
 }
 
-function EmptyState({ onNewProject }: { onNewProject: () => void }) {
+function EmptyState({
+  onNewProject,
+  onLoadSeed,
+}: {
+  onNewProject: () => void;
+  onLoadSeed: () => void;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
       <p className="text-[15px] font-medium">아직 큰 과업이 없어요</p>
@@ -318,16 +325,29 @@ function EmptyState({ onNewProject }: { onNewProject: () => void }) {
         <br />
         그 아래에 실제로 착수할 수 있는 할 일을 쪼개어 넣어보세요.
       </p>
-      <button
-        type="button"
-        onClick={onNewProject}
-        className="mt-1 rounded-lg px-4 py-2 text-[13px] font-medium"
-        style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <Icon name="plus" size={14} /> 새 큰 과업 만들기
-        </span>
-      </button>
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onNewProject}
+          className="rounded-lg px-4 py-2 text-[13px] font-medium"
+          style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="plus" size={14} /> 새 큰 과업 만들기
+          </span>
+        </button>
+        {/* 샘플은 자동으로 깔리지 않는다(FR-17). 보고 싶은 사람이 부를 수 있는 자리를 남긴다 */}
+        <button
+          type="button"
+          onClick={onLoadSeed}
+          className="rounded-lg border px-3.5 py-2 text-[13px]"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="sparkle" size={14} /> 예시로 둘러보기
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

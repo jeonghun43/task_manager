@@ -31,11 +31,6 @@ export interface AppState {
   projects: Project[];
   tasks: Task[];
   hydrated: boolean;
-  /**
-   * 지금 화면의 데이터가 **우리가 만들어 보여준 샘플이며 아직 손대지 않았다** 는 뜻 (FR-17).
-   * 사용자가 무엇이든 바꾸면 false 가 되고, 그때부터 "이 사람의 데이터" 다.
-   */
-  isSample: boolean;
 
   hydrate: () => Promise<void>;
 
@@ -92,40 +87,34 @@ function pickColor(projects: Project[]): ProjectColor {
   return best;
 }
 
-/**
- * 저장 후 상태를 반환하는 헬퍼 — 모든 변경 액션이 이걸 거친다.
- *
- * 여기를 지난다는 것은 곧 **사용자가 데이터를 건드렸다**는 뜻이므로 샘플 표시를 뗀다.
- * 표시를 떼는 지점을 액션마다 흩어두면 언젠가 하나를 빠뜨린다. 통로가 하나뿐이라 여기 둔다.
- */
+/** 저장 후 상태를 반환하는 헬퍼 — 모든 변경 액션이 이걸 거친다. */
 function persist(next: Pick<AppState, 'projects' | 'tasks'>) {
   void adapter.save(snapshot(next));
-  return { ...next, isSample: false };
+  return next;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   projects: [],
   tasks: [],
   hydrated: false,
-  isSample: false,
 
+  /**
+   * 저장된 것이 없으면 **빈 상태로 시작한다** (FR-17).
+   *
+   * 예전에는 여기서 샘플을 만들어 넣었다. 그런데 그 샘플은 사용자가 만든 것이 아닌데도
+   * 저장소 안에서는 실제 데이터와 구분되지 않아서, 새 기기에서 로그인할 때마다
+   * 샘플 한 벌이 계정에 올라가 쌓였다. 샘플을 실제 데이터와 같은 자리에 미리 앉혀두는 한
+   * 그 혼동은 계속 되살아난다 — 그래서 자동 생성 자체를 없앴다.
+   * 샘플은 `⋯ → 샘플 데이터 불러오기` 로 **사용자가 부를 때만** 들어온다 (FR-6.3).
+   */
   hydrate: async () => {
     if (get().hydrated) return;
     const loaded = await adapter.load();
-    if (loaded) {
-      set({
-        projects: loaded.projects,
-        tasks: loaded.tasks,
-        isSample: loaded.sample === true,
-        hydrated: true,
-      });
-    } else {
-      // 최초 실행: 구조를 보여주는 샘플로 시작한다 (FR-6.3)
-      // persist() 를 타지 않고 직접 저장한다 — 이건 사용자의 변경이 아니므로 샘플 표시를 남긴다
-      const seed = createSeedData();
-      void adapter.save({ ...seed, sample: true });
-      set({ projects: seed.projects, tasks: seed.tasks, isSample: true, hydrated: true });
-    }
+    set({
+      projects: loaded?.projects ?? [],
+      tasks: loaded?.tasks ?? [],
+      hydrated: true,
+    });
   },
 
   /* ------------------------------ 큰 과업 ------------------------------ */

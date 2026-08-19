@@ -60,13 +60,6 @@ export interface Task {
 export interface AppData {
   /** 스키마 버전 — 향후 마이그레이션 대비 (NFR-3) */
   version: 1;
-  /**
-   * 첫 실행에 우리가 만들어 보여준 샘플이며 **사용자가 아직 손대지 않았다** 는 표시 (FR-17).
-   *
-   * 사용자가 무엇이든 바꾸는 순간 사라진다. 이 구분이 없으면 새 기기에서 로그인할 때
-   * 그 기기의 샘플이 "이 기기의 데이터" 로 취급되어 계정에 올라간다.
-   */
-  sample?: boolean;
   projects: Project[];
   tasks: Task[];
 }

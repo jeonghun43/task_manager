@@ -28,6 +28,24 @@ export default function Toaster() {
         >
           <span className="min-w-0 flex-1 truncate text-[13px]">{t.message}</span>
 
+          {t.action && (
+            <button
+              type="button"
+              onClick={() => {
+                t.action?.run();
+                dismiss(t.id);
+              }}
+              className="tap-44 flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium"
+              style={{
+                background: 'color-mix(in srgb, var(--accent) 16%, transparent)',
+                color: 'var(--accent)',
+              }}
+            >
+              {t.action.label}
+              <Icon name="arrow-right" size={14} />
+            </button>
+          )}
+
           {t.undo && (
             <button
               type="button"

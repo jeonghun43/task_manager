@@ -24,8 +24,9 @@ import { PRIORITY_RANK } from '@/lib/constants';
 import { backwardSchedule, daysUntil } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
 import { usePlanStore } from '@/store/usePlanStore';
+import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
-import type { DateStr, Project, Task } from '@/lib/types';
+import type { DateStr, Project, Task, ViewKey } from '@/lib/types';
 import { StaticTaskCard } from '../TaskCard';
 import { useBoardSensors } from '../useBoardSensors';
 import { Button } from '../ui/Field';
@@ -35,6 +36,8 @@ interface Props {
   filter: TaskFilter;
   onEditTask: (task: Task) => void;
   onEditProject: (project: Project) => void;
+  /** 확정 직후 결과를 확인하러 갈 수 있도록 (FR-19) */
+  onGoToView: (v: ViewKey) => void;
 }
 
 /**
@@ -43,10 +46,17 @@ interface Props {
  * 최종 목표의 마감일을 앵커로 두고, 미배치 항목을 남은 날에 흩뿌린 뒤
  * 드래그로 조정한다. 오늘 칸에 남는 것이 곧 "오늘 해야 할 일" 이다.
  */
-export default function CalendarView({ filter, onEditTask, onEditProject }: Props) {
+export default function CalendarView({
+  filter,
+  onEditTask,
+  onEditProject,
+  onGoToView,
+}: Props) {
   const projects = useAppStore((s) => s.projects);
   const tasks = useAppStore((s) => s.tasks);
   const updateTask = useAppStore((s) => s.updateTask);
+  const show = useToastStore((s) => s.show);
+  const showAction = useToastStore((s) => s.showAction);
 
   const anchor = useUiStore((s) => s.calendarAnchor);
   const setAnchor = useUiStore((s) => s.setCalendarAnchor);
@@ -58,6 +68,12 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
 
   const [selected, setSelected] = useState<DateStr>(today);
   const [activeId, setActiveId] = useState<string | null>(null);
+  /**
+   * 버튼에 손만 올렸을 때 보여주는 결과 예고 (FR-19).
+   * 실제 미리보기(`preview`)와 달리 **저장되지도, 확정 대상이 되지도 않는다.**
+   * 눌러야만 알 수 있는 동작은 안 누르게 된다 — 먼저 보여주면 물어볼 일이 없다.
+   */
+  const [peeking, setPeeking] = useState(false);
 
   /**
    * 역산 배치 미리보기 — 확정 전까지 저장되지 않는다.
@@ -81,19 +97,6 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
   }, [preview]);
 
   const visible = useMemo(() => filterTasks(tasks, pmap, filter), [tasks, pmap, filter]);
-
-  const tasksByDate = useMemo(() => {
-    const m = new Map<DateStr, Task[]>();
-    for (const t of visible) {
-      const d = effectiveDue(t);
-      if (!d) continue;
-      const list = m.get(d) ?? [];
-      list.push(t);
-      m.set(d, list);
-    }
-    for (const list of m.values()) list.sort((a, b) => compareByDeadline(a, b, pmap));
-    return m;
-  }, [visible, effectiveDue, pmap]);
 
   const projectsByDate = useMemo(() => {
     const m = new Map<DateStr, Project[]>();
@@ -132,16 +135,39 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
     return trayTasks.filter((t) => t.projectId === planProject.id);
   }, [trayTasks, planProject]);
 
-  const runBackwardSchedule = () => {
-    if (!planProject?.dueDate || planTargets.length === 0) return;
-    const next = backwardSchedule(
+  /** 지금 누르면 나올 배치 결과. 예고와 실행이 같은 함수를 쓰므로 어긋날 수 없다. */
+  const plannedDates = useMemo(() => {
+    if (!planProject?.dueDate || planTargets.length === 0) return null;
+    return backwardSchedule(
       planProject.dueDate,
       today,
       planTargets.map((t) => t.id),
     );
-    setPreview(next);
+  }, [planProject, today, planTargets]);
+
+  const runBackwardSchedule = () => {
+    if (!plannedDates) return;
+    setPeeking(false);
+    setPreview(plannedDates);
     setAnchor(today);
   };
+
+  /** 예고 중에는 결과를 달력에 얹어 보여준다 (확정 대상은 아니다) */
+  const peekDates = peeking && !preview ? plannedDates : null;
+
+  /** 달력 칸에 그릴 항목 — 예고(peek)까지 반영한다. peekDates 뒤에 와야 한다. */
+  const tasksByDate = useMemo(() => {
+    const m = new Map<DateStr, Task[]>();
+    for (const t of visible) {
+      const d = peekDates?.has(t.id) ? peekDates.get(t.id) : effectiveDue(t);
+      if (!d) continue;
+      const list = m.get(d) ?? [];
+      list.push(t);
+      m.set(d, list);
+    }
+    for (const list of m.values()) list.sort((a, b) => compareByDeadline(a, b, pmap));
+    return m;
+  }, [visible, effectiveDue, peekDates, pmap]);
 
 
   /* ------------------------------ DnD ------------------------------ */
@@ -197,6 +223,23 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
     const furthest = outside.reduce((a, b) => (a > b ? a : b));
     return { count: outside.length, furthest, after: furthest > last };
   }, [visible, effectiveDue, cells]);
+
+  /**
+   * 확정은 역산의 끝이 아니라 **결과를 보는 순간**이다 (FR-19).
+   * 여기서 끝내버리면 "그래서 뭐가 좋아졌는데" 를 못 보고 지나간다.
+   * 오늘 몫이 몇 개 잡혔는지 말해주고, 그걸 확인하러 갈 길을 붙인다.
+   */
+  const confirmPlan = () => {
+    const todayCount = preview
+      ? [...preview.values()].filter((d) => d === today).length
+      : 0;
+    commitPreview();
+    if (todayCount > 0) {
+      showAction(`오늘 할 일 ${todayCount}개가 잡혔어요`, '오늘 보기', () => onGoToView('today'));
+    } else {
+      show('날짜를 저장했어요');
+    }
+  };
 
   const goToday = () => {
     setAnchor(today);
@@ -271,7 +314,7 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
                 </span>
                 <div className="ml-auto flex gap-1.5">
                   <Button onClick={discardPreview}>취소</Button>
-                  <Button variant="primary" onClick={commitPreview}>
+                  <Button variant="primary" onClick={confirmPlan}>
                     확정
                   </Button>
                 </div>
@@ -360,6 +403,7 @@ export default function CalendarView({ filter, onEditTask, onEditProject }: Prop
                 planTargetCount={planTargets.length}
                 previewActive={preview !== null}
                 onRun={runBackwardSchedule}
+              onHoverPreview={setPeeking}
                 onEditProject={onEditProject}
               />
             </div>
@@ -614,6 +658,7 @@ function PlanTray({
   planTargetCount,
   previewActive,
   onRun,
+  onHoverPreview,
   onEditProject,
 }: {
   tasks: Task[];
@@ -626,6 +671,8 @@ function PlanTray({
   planTargetCount: number;
   previewActive: boolean;
   onRun: () => void;
+  /** 누르기 전에 결과를 달력에 흐리게 보여준다 */
+  onHoverPreview: (on: boolean) => void;
   onEditProject: (p: Project) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'plan-tray', data: { type: 'tray' } });
@@ -709,9 +756,15 @@ function PlanTray({
         )}
       </div>
 
+      {/*
+        단계에 강약을 준다 (FR-19).
+        선택기·목록·버튼이 같은 무게로 놓여 있으면 어디부터 손대야 하는지 보이지 않는다.
+        큰 과업을 고르기 전에는 뒤 단계를 흐리게 둬서, 눈이 자연히 선택기부터 가게 한다.
+        번호를 매기지 않고도 순서가 읽히는 편이 화면이 조용하다.
+      */}
       <div
-        className="mb-2 flex items-center gap-2 border-t pt-2.5"
-        style={{ borderColor: 'var(--border)' }}
+        className="mb-2 flex items-center gap-2 border-t pt-2.5 transition-opacity"
+        style={{ borderColor: 'var(--border)', opacity: planProject ? 1 : 0.45 }}
       >
         <h3 className="text-[13px] font-semibold">아직 날짜 없음</h3>
         <span className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
@@ -723,7 +776,10 @@ function PlanTray({
       </div>
 
       {tasks.length > 0 ? (
-        <div className="thin-scroll flex min-h-0 max-h-52 flex-1 flex-col gap-1 overflow-y-auto">
+        <div
+          className="thin-scroll flex min-h-0 max-h-52 flex-1 flex-col gap-1 overflow-y-auto transition-opacity"
+          style={{ opacity: planProject ? 1 : 0.45 }}
+        >
           {tasks.map((t, i) => (
             <TrayItem key={t.id} task={t} project={pmap.get(t.projectId)} index={i + 1} />
           ))}
@@ -742,19 +798,62 @@ function PlanTray({
         className="mt-2.5 shrink-0 border-t pt-2.5"
         style={{ borderColor: 'var(--border)' }}
       >
+        {/*
+          라벨이 곧 설명이다 (FR-19).
+          `역산 배치` 는 무슨 일이 일어나는지 말해주지 않는 추상적인 동사였다.
+          남은 일수와 개수를 넣어 문장으로 만들면 설명 한 줄이 통째로 필요 없어진다.
+
+          호버하면 실제 결과를 달력에 흐리게 그려 준다 — 누르기 전에 볼 수 있으면
+          "눌러도 되나" 를 묻지 않게 되고, 그게 어떤 안내문보다 잘 가르친다.
+        */}
         <button
           type="button"
           disabled={!canRun}
           onClick={onRun}
+          onMouseEnter={() => canRun && onHoverPreview(true)}
+          onMouseLeave={() => onHoverPreview(false)}
+          onFocus={() => canRun && onHoverPreview(true)}
+          onBlur={() => onHoverPreview(false)}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-opacity disabled:opacity-40"
           style={{
             background: canRun ? 'var(--accent)' : 'var(--surface)',
             color: canRun ? 'var(--accent-contrast)' : 'var(--text-faint)',
           }}
         >
-          <Icon name="rewind" size={14} /> 역산 배치
-          {canRun && ` ${planTargetCount}개`}
+          <Icon name="rewind" size={14} />
+          {canRun && remaining !== null
+            ? remaining <= 0
+              ? `${planTargetCount}개를 오늘로 모으기`
+              : `${remaining}일에 ${planTargetCount}개 나누기`
+            : '마감일에서 거꾸로 나누기'}
         </button>
+
+        {/*
+          도움말의 최소 형태 (FR-19).
+          3장짜리 오버레이 대신, 궁금한 사람이 그 자리에서 펼치는 한 줄로 둔다.
+          역산은 버튼 사용법이 아니라 일하는 방식이라 "왜" 를 한 번은 말해줘야 하는데,
+          그걸 모두에게 강제로 읽히면 정작 아는 사람에게는 소음이 된다.
+        */}
+        <details className="mt-2 group">
+          <summary
+            className="cursor-pointer list-none text-[11px] underline decoration-dotted underline-offset-2"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            거꾸로 잡는다는 게 뭔가요?
+          </summary>
+          <p
+            className="mt-1.5 rounded-lg p-2 text-[11.5px] leading-relaxed"
+            style={{ background: 'var(--surface)', color: 'var(--text-muted)' }}
+          >
+            할 일마다 &ldquo;언제 할까&rdquo;를 하나씩 정하면 결국 미루게 됩니다. 대신{' '}
+            <b>목표의 마감일을 못 박고</b> 거기서 거꾸로 세어 남은 날에 나누면, 오늘 몫이 저절로
+            정해집니다. 하루에 할 수 있는 만큼만 남으니까요.
+            <br />
+            <br />
+            나눠 놓은 결과는 <b>제안일 뿐</b>이라 바로 저장되지 않습니다. 달력에서 끌어다 고친 뒤
+            확정하세요.
+          </p>
+        </details>
 
         <p className="mt-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-faint)' }}>
           {projects.length === 0 ? (
