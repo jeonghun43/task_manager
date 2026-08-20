@@ -28,6 +28,10 @@ export default function AppShell() {
   const tasks = useAppStore((s) => s.tasks);
 
   const initSync = useSyncStore((s) => s.init);
+  const syncState = useSyncStore((s) => s.state);
+  const syncCounts = useSyncStore((s) => s.localCounts);
+  const uploadAndSync = useSyncStore((s) => s.uploadAndSync);
+  const postponeSync = useSyncStore((s) => s.postpone);
   const hydrateUi = useUiStore((s) => s.hydrateUi);
   const uiHydrated = useUiStore((s) => s.uiHydrated);
   const view = useUiStore((s) => s.view);
@@ -208,6 +212,26 @@ export default function AppShell() {
           if (deleting) deleteProject(deleting.id);
           setDeleting(null);
         }}
+      />
+
+      {/*
+        로그인 직후, 이 기기에 데이터가 있으면 올릴지 먼저 묻는다 (FR-21).
+        묻지 않고 합치면 "계정에는 없어야 할 것" 이 조용히 올라간다.
+      */}
+      <ConfirmDialog
+        open={syncState === 'asking'}
+        title="이 기기의 일정을 계정에 올릴까요?"
+        message={`이 기기에 큰 과업 ${syncCounts.projects}개, 할 일 ${syncCounts.tasks}개가 있어요.
+올리면 계정에 있던 일정과 합쳐집니다.
+
+올리기 전에 정리하고 싶으면 "나중에" 를 고르세요.
+동기화를 미뤄둔 채로 이 기기에서 계속 정리할 수 있어요.`}
+        danger={false}
+        confirmLabel="올리고 동기화 시작"
+        secondaryLabel="나중에 — 먼저 정리할게요"
+        onSecondary={postponeSync}
+        onConfirm={() => void uploadAndSync()}
+        onCancel={postponeSync}
       />
 
       <Toaster />

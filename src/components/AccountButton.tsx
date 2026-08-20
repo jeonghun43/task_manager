@@ -23,9 +23,49 @@ export default function AccountButton() {
   const message = useSyncStore((s) => s.message);
   const signIn = useSyncStore((s) => s.signIn);
   const signOut = useSyncStore((s) => s.signOut);
+  const uploadAndSync = useSyncStore((s) => s.uploadAndSync);
 
   // 동기화를 설정하지 않은 배포에서는 계정이라는 개념 자체가 없다
   if (!configured) return null;
+
+  /*
+   * 사용자가 "나중에" 를 골라 동기화를 미뤄둔 상태 (FR-21).
+   * 로그인은 되어 있지만 아무것도 올리지도 내려받지도 않았다.
+   * 이 상태가 화면에 안 보이면 "로그인했는데 왜 동기화가 안 되지" 로 남는다.
+   */
+  if (state === 'paused') {
+    return (
+      <Menu
+        label="동기화 대기 중"
+        align="right"
+        items={[
+          { kind: 'header', label: email ?? '로그인됨' },
+          {
+            kind: 'item',
+            label: '지금 올리고 동기화 시작',
+            icon: <Icon name="cloud" size={14} />,
+            onSelect: () => void uploadAndSync(),
+          },
+          { kind: 'divider' },
+          {
+            kind: 'item',
+            label: '로그아웃',
+            icon: <Icon name="cloud-off" size={14} />,
+            onSelect: () => void signOut(),
+          },
+        ]}
+        trigger={
+          <span
+            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium"
+            style={{ border: '1px solid var(--p-amber)', color: 'var(--p-amber)' }}
+          >
+            <Icon name="cloud" size={14} />
+            동기화 대기
+          </span>
+        }
+      />
+    );
+  }
 
   if (state !== 'synced') {
     const connecting = state === 'connecting';

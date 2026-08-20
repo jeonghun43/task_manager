@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { addDays, daysFromToday, humanDue, todayStr } from '@/lib/date';
 import type { DateStr } from '@/lib/types';
 import { DueBadge } from './Badge';
+import FloatingLayer from './FloatingLayer';
 import Icon from './Icon';
 
 interface Props {
@@ -20,23 +21,8 @@ interface Props {
 export default function DueDatePicker({ value, onChange, alwaysShow = true }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const today = todayStr();
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
 
   if (!value && !alwaysShow) return null;
 
@@ -63,6 +49,7 @@ export default function DueDatePicker({ value, onChange, alwaysShow = true }: Pr
   return (
     <div ref={rootRef} className="relative inline-flex">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={value ? `마감일 ${value} 변경` : '마감일 지정'}
         onPointerDown={(e) => e.stopPropagation()}
@@ -84,9 +71,12 @@ export default function DueDatePicker({ value, onChange, alwaysShow = true }: Pr
         )}
       </button>
 
-      {open && (
+      {/*
+        카드 안에 그리면 컬럼의 overflow 에 잘린다 — 화면 최상단 레이어로 띄운다.
+      */}
+      <FloatingLayer anchorRef={triggerRef} open={open} onClose={() => setOpen(false)} width={224}>
         <div
-          className="pop-in absolute left-0 top-full z-40 mt-1 w-56 rounded-lg border p-2"
+          className="rounded-lg border p-2"
           style={{
             background: 'var(--bg-elevated)',
             borderColor: 'var(--border)',
@@ -142,7 +132,7 @@ export default function DueDatePicker({ value, onChange, alwaysShow = true }: Pr
             </button>
           )}
         </div>
-      )}
+      </FloatingLayer>
     </div>
   );
 }

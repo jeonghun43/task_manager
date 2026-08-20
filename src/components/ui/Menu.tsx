@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import FloatingLayer from './FloatingLayer';
 import Icon from './Icon';
 
 export type MenuItem =
@@ -30,26 +31,12 @@ interface Props {
 export default function Menu({ items, trigger, label, align = 'right' }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label}
         // 아이콘만 있는 버튼은 스크린 리더는 읽지만 마우스 사용자는 눌러봐야 안다 (FR-18 F4)
@@ -69,12 +56,19 @@ export default function Menu({ items, trigger, label, align = 'right' }: Props) 
         {trigger ?? <Icon name="more-vertical" />}
       </button>
 
-      {open && (
+      {/*
+        카드 안에 그리면 컬럼의 overflow 에 잘린다 — 화면 최상단 레이어로 띄운다 (FR-20).
+      */}
+      <FloatingLayer
+        anchorRef={triggerRef}
+        open={open}
+        onClose={() => setOpen(false)}
+        align={align}
+        width={192}
+      >
         <div
           role="menu"
-          className={`thin-scroll pop-in absolute z-40 mt-1 max-h-80 min-w-48 overflow-y-auto rounded-lg border py-1 ${
-            align === 'right' ? 'right-0' : 'left-0'
-          }`}
+          className="thin-scroll max-h-[70vh] overflow-y-auto rounded-lg border py-1"
           style={{
             background: 'var(--bg-elevated)',
             borderColor: 'var(--border)',
@@ -129,7 +123,7 @@ export default function Menu({ items, trigger, label, align = 'right' }: Props) 
             );
           })}
         </div>
-      )}
+      </FloatingLayer>
     </div>
   );
 }
