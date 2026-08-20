@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { mergeAppData } from '@/lib/merge';
-import { getSupabase, isSyncConfigured } from '@/lib/supabase/client';
+import { getSupabase, isSyncConfigured, readStoredAuth } from '@/lib/supabase/client';
 import { localAdapter } from '@/lib/storage/local';
 import { SupabaseAdapter } from '@/lib/storage/supabase';
 import type { StorageAdapter } from '@/lib/storage/adapter';
@@ -42,6 +42,11 @@ interface SyncStore {
   uploadAndSync: () => Promise<void>;
   /** "나중에" — 정리할 시간을 준다. 아무것도 올리지도 내려받지도 않는다 */
   postpone: () => void;
+  /**
+   * 끊긴 연결을 되살린다 (FR-22).
+   * 저장된 토큰이 남아 있으면 **구글 재로그인 없이** 세션만 갱신해 본다.
+   */
+  reconnect: () => Promise<void>;
 }
 
 let channel: RealtimeChannel | null = null;
@@ -124,7 +129,27 @@ export const useSyncStore = create<SyncStore>((set) => ({
     const db = getSupabase();
     if (!db) return;
 
-    const { data } = await db.auth.getSession();
+    let { data } = await db.auth.getSession();
+
+    /*
+     * 세션은 없는데 **토큰은 남아 있는** 경우 (FR-22).
+     * 노트북을 켜자마자 탭이 복원되면 네트워크가 아직 안 붙어 갱신이 실패하곤 한다.
+     * 여기서 곧바로 `로그인` 버튼을 보여주면 사용자에게는 "로그아웃됐다" 로 읽히지만,
+     * 실제로는 다시 연결하기만 하면 되는 상태다.
+     */
+    if (!data.session && readStoredAuth().present) {
+      const refreshed = await db.auth.refreshSession();
+      if (refreshed.data.session) {
+        data = { session: refreshed.data.session };
+      } else {
+        set({
+          state: 'error',
+          message: '로그인 정보는 남아 있는데 연결하지 못했어요. 네트워크를 확인한 뒤 다시 시도해 주세요.',
+        });
+        watchForNetwork(set);
+      }
+    }
+
     if (data.session) {
       /*
        * 방금 로그인하고 돌아온 것인지, 그냥 앱을 다시 연 것인지 갈라야 한다.
@@ -150,7 +175,18 @@ export const useSyncStore = create<SyncStore>((set) => ({
         consumeSignInIntent();
         void beginSignIn(session, set);
       }
-      if (event === 'SIGNED_OUT') void detach(set);
+      /*
+       * `SIGNED_OUT` 이 곧 사용자의 로그아웃은 아니다 (FR-22).
+       * 토큰 갱신이 거부돼도 같은 이벤트가 온다. 저장된 토큰이 아직 남아 있다면
+       * 일시적인 실패로 보고 복구할 수 있는 상태로 남긴다 — 로그인부터 다시 하라고 하지 않는다.
+       */
+      if (event === 'SIGNED_OUT') {
+        if (readStoredAuth().present) {
+          void softDisconnect(set, '연결이 끊겼어요. 다시 연결해 주세요.');
+        } else {
+          void detach(set);
+        }
+      }
     });
     unsubscribeAuth = () => sub.subscription.unsubscribe();
   },
@@ -185,11 +221,64 @@ export const useSyncStore = create<SyncStore>((set) => ({
     // 붙이지 않는다. 로컬 데이터도 화면도 그대로 두고 사용자가 정리할 시간을 준다.
     set({ state: 'paused' });
   },
+
+  reconnect: async () => {
+    const db = getSupabase();
+    if (!db) return;
+    set({ state: 'connecting', message: null });
+
+    // 토큰이 남아 있으면 구글까지 다시 갈 필요가 없다
+    const { data } = await db.auth.refreshSession();
+    if (data.session) {
+      await attach(data.session, set, 'restore');
+      return;
+    }
+    const current = await db.auth.getSession();
+    if (current.data.session) {
+      await attach(current.data.session, set, 'restore');
+      return;
+    }
+    // 정말로 못 살리면 그때 다시 로그인한다
+    await useSyncStore.getState().signIn();
+  },
 }));
 
 /* ------------------------------------------------------------------ */
 
 type SetState = (partial: Partial<SyncStore>) => void;
+
+/** 서버와의 연결만 끊는다. 로그인 정보(토큰)는 남겨 두므로 다시 연결할 수 있다. */
+async function softDisconnect(set: SetState, message: string) {
+  channel?.unsubscribe();
+  channel = null;
+  adapter = null;
+  attachedUserId = null;
+  setStorageAdapter(localAdapter);
+  await localAdapter.save(localSnapshot());
+  set({ state: 'error', message });
+  watchForNetwork(set);
+}
+
+let networkWatcher: (() => void) | null = null;
+
+/**
+ * 네트워크가 돌아오면 한 번 자동으로 다시 시도한다 (FR-22).
+ * 부팅 직후처럼 "잠깐 안 되던" 경우를 사용자가 손대지 않아도 넘긴다.
+ */
+function watchForNetwork(set: SetState) {
+  if (networkWatcher || typeof window === 'undefined') return;
+  const onOnline = () => {
+    cleanup();
+    void useSyncStore.getState().reconnect();
+  };
+  const cleanup = () => {
+    window.removeEventListener('online', onOnline);
+    networkWatcher = null;
+  };
+  window.addEventListener('online', onOnline);
+  networkWatcher = cleanup;
+  void set;
+}
 
 /** 방금 로그인했다. 이 기기에 데이터가 있으면 올릴지 먼저 묻는다 (FR-21). */
 async function beginSignIn(session: Session, set: SetState) {

@@ -24,6 +24,7 @@ export default function AccountButton() {
   const signIn = useSyncStore((s) => s.signIn);
   const signOut = useSyncStore((s) => s.signOut);
   const uploadAndSync = useSyncStore((s) => s.uploadAndSync);
+  const reconnect = useSyncStore((s) => s.reconnect);
 
   // 동기화를 설정하지 않은 배포에서는 계정이라는 개념 자체가 없다
   if (!configured) return null;
@@ -73,11 +74,16 @@ export default function AccountButton() {
     return (
       <button
         type="button"
-        onClick={() => void signIn()}
+        /*
+         * 실패 상태에서는 구글까지 다시 가지 않는다 (FR-22).
+         * 토큰이 남아 있으면 세션만 갱신하면 되는데, `로그인` 으로 보내면
+         * "로그아웃됐다" 는 잘못된 인상을 주고 불필요한 왕복을 시킨다.
+         */
+        onClick={() => void (failed ? reconnect() : signIn())}
         disabled={connecting}
         title={
           failed
-            ? `동기화에 실패했어요: ${message ?? '알 수 없는 오류'} — 눌러서 다시 시도`
+            ? `${message ?? '연결이 끊겼어요'} — 눌러서 다시 연결`
             : '구글 계정으로 로그인하면 다른 기기에서도 같은 일정이 보여요'
         }
         className="tap-44 flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors"
@@ -92,7 +98,7 @@ export default function AccountButton() {
         <span className="hidden sm:inline-flex">
           <Icon name={failed ? 'cloud-off' : 'cloud'} size={14} />
         </span>
-        {connecting ? '연결 중…' : failed ? '동기화 실패' : '로그인'}
+        {connecting ? '연결 중…' : failed ? '다시 연결' : '로그인'}
       </button>
     );
   }

@@ -4,7 +4,9 @@ import { useRef, useState } from 'react';
 import { PRIORITY_ICON, PRIORITY_LABEL, PRIORITY_ORDER } from '@/lib/constants';
 import { isFilterActive, type TaskFilter } from '@/lib/derive';
 import { todayStr } from '@/lib/date';
+import { readStoredAuth } from '@/lib/supabase/client';
 import { useAppStore } from '@/store/useAppStore';
+import { useSyncStore } from '@/store/useSyncStore';
 import { useToastStore } from '@/store/useToastStore';
 import { useUiStore } from '@/store/useUiStore';
 import type { Priority } from '@/lib/types';
@@ -35,8 +37,12 @@ export default function Toolbar({ filter, onNewProject, onNewTask }: Props) {
   const setHideCompleted = useUiStore((s) => s.setHideCompleted);
   const resetFilters = useUiStore((s) => s.resetFilters);
 
+  const syncConfigured = useSyncStore((s) => s.configured);
+  const syncState = useSyncStore((s) => s.state);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const flash = useToastStore((s) => s.show);
 
@@ -102,7 +108,55 @@ export default function Toolbar({ filter, onNewProject, onNewTask }: Props) {
     },
   ];
 
+  /**
+   * 동기화 진단 (FR-22).
+   * "왜 로그인이 풀렸나" 는 브라우저 설정이나 origin 문제인 경우가 있어 코드로 못 고친다.
+   * 대신 **어느 쪽인지 사용자가 알 수 있게** 사실만 보여준다.
+   */
+  const runDiagnosis = () => {
+    const a = readStoredAuth();
+    const state =
+      syncState === 'synced'
+        ? '연결됨'
+        : syncState === 'paused'
+          ? '동기화 대기 (사용자가 미룸)'
+          : syncState === 'error'
+            ? '연결 끊김'
+            : '로그인 안 됨';
+
+    setDiagnosis(
+      [
+        `상태: ${state}`,
+        '',
+        '로그인 유지 방식: localStorage (쿠키 아님)',
+        `저장 키: ${a.key ?? '알 수 없음'}`,
+        `저장된 로그인 정보: ${a.present ? '있음' : '없음'}`,
+        `토큰 만료: ${a.expiresAt ? a.expiresAt.toLocaleString('ko-KR') : '알 수 없음'}`,
+        `저장소 쓰기 가능: ${a.writable ? '예' : '아니오 — 이러면 탭을 닫는 순간 로그인이 날아갑니다'}`,
+        `현재 주소: ${window.location.origin}`,
+        '',
+        '로그인이 자꾸 풀린다면:',
+        '· "저장된 로그인 정보: 없음" 이면 → 브라우저가 종료 시 사이트 데이터를 지우고 있을 수 있어요.',
+        '  (설정 → 개인정보 → 쿠키 및 사이트 데이터 → "종료 시 삭제" 확인)',
+        '· 로그인할 때와 다시 열 때의 주소가 다르면 → 로그인 정보는 주소마다 따로 저장돼요.',
+        '  (localhost 와 배포 주소는 서로 다른 저장소입니다)',
+      ].join('\n'),
+    );
+  };
+
   const dataItems: MenuItem[] = [
+    ...(syncConfigured
+      ? ([
+          { kind: 'header', label: '동기화' },
+          {
+            kind: 'item',
+            label: '동기화 진단',
+            icon: <Icon name="cloud" size={14} />,
+            onSelect: runDiagnosis,
+          },
+          { kind: 'divider' },
+        ] as MenuItem[])
+      : []),
     { kind: 'header', label: '화면' },
     {
       kind: 'item',
@@ -223,6 +277,17 @@ export default function Toolbar({ filter, onNewProject, onNewTask }: Props) {
           if (f) void doImport(f);
           e.target.value = '';
         }}
+      />
+
+      <ConfirmDialog
+        open={diagnosis !== null}
+        title="동기화 진단"
+        message={diagnosis ?? ''}
+        danger={false}
+        confirmLabel="닫기"
+        showCancel={false}
+        onConfirm={() => setDiagnosis(null)}
+        onCancel={() => setDiagnosis(null)}
       />
 
       <ConfirmDialog

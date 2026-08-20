@@ -17,6 +17,11 @@ interface Props {
    */
   secondaryLabel?: string;
   onSecondary?: () => void;
+  /**
+   * 읽기만 하는 안내창처럼 "취소" 라는 선택지가 없는 경우에 끈다.
+   * 같은 일을 하는 버튼이 둘이면(취소 · 닫기) 무엇이 다른지 생각하게 만든다.
+   */
+  showCancel?: boolean;
 }
 
 /** 파괴적 동작은 확인 없이 실행되지 않는다 (헌법 VI) */
@@ -28,6 +33,7 @@ export default function ConfirmDialog({
   danger = true,
   onConfirm,
   onCancel,
+  showCancel = true,
   secondaryLabel,
   onSecondary,
 }: Props) {
@@ -38,7 +44,7 @@ export default function ConfirmDialog({
       title={title}
       footer={
         <>
-          <Button onClick={onCancel}>취소</Button>
+          {showCancel && <Button onClick={onCancel}>취소</Button>}
           {secondaryLabel && onSecondary && (
             <Button onClick={onSecondary}>{secondaryLabel}</Button>
           )}
